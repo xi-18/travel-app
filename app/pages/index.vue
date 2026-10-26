@@ -1,21 +1,55 @@
 <template>
     <div
-        v-if="showNicknameModal"
+        v-if="showAuthModal"
         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
     >
         <div class="bg-white rounded-2xl p-6 w-80">
-            <h3 class="font-bold mb-3">歡迎！請輸入你的暱稱</h3>
+            <h3 class="font-bold mb-3">
+                {{ authMode === "login" ? "登入" : "註冊" }}
+            </h3>
             <input
-                v-model="nicknameInput"
+                v-if="authMode === 'register'"
+                v-model="authForm.nickname"
                 placeholder="你的暱稱"
                 class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
-                @keyup.enter="confirmNickname(nicknameInput)"
             />
+            <input
+                v-model="authForm.email"
+                type="email"
+                placeholder="Email"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
+            />
+            <input
+                v-model="authForm.password"
+                type="password"
+                placeholder="密碼"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
+                @keyup.enter="submitAuth"
+            />
+            <p v-if="authError" class="text-[#ef4444] text-sm mb-3">
+                {{ authError }}
+            </p>
             <button
-                class="w-full py-2 bg-[#2a9d8f] text-white rounded-lg"
-                @click="confirmNickname(nicknameInput)"
+                class="w-full py-2 bg-[#2a9d8f] text-white rounded-lg mb-2"
+                @click="submitAuth"
             >
-                確認
+                {{ authMode === "login" ? "登入" : "註冊" }}
+            </button>
+            <button
+                class="w-full py-2 text-[#2a9d8f] text-sm"
+                @click="authMode = authMode === 'login' ? 'register' : 'login'"
+            >
+                {{
+                    authMode === "login"
+                        ? "還沒帳號？去註冊"
+                        : "已有帳號？去登入"
+                }}
+            </button>
+            <button
+                class="w-full py-2 text-[#999] text-sm"
+                @click="showAuthModal = false"
+            >
+                先以訪客身份瀏覽
             </button>
         </div>
     </div>
@@ -37,7 +71,21 @@
                         </div>
                     </div>
                 </div>
-                <div class="text-[13px] text-[#555]">✨ 探索每一段旅程</div>
+                <div class="flex items-center gap-3">
+                    <span v-if="session" class="text-[13px] text-[#555]">
+                        你好，{{ profile?.nickname }}
+                        <button class="text-[#e76f51] ml-2" @click="logout">
+                            登出
+                        </button>
+                    </span>
+                    <button
+                        v-else
+                        class="text-[13px] text-[#2a9d8f]"
+                        @click="showAuthModal = true"
+                    >
+                        登入 / 註冊
+                    </button>
+                </div>
             </header>
 
             <!-- Hero -->
@@ -124,6 +172,16 @@
                     </div>
                     <div class="flex-1 min-w-35">
                         <label class="block text-xs text-[#888] mb-1"
+                            >結束日期</label
+                        >
+                        <input
+                            v-model="newTrip.end_date"
+                            type="date"
+                            class="w-full px-3 py-2.5 border border-gray-200 rounded-lg box-border"
+                        />
+                    </div>
+                    <div class="flex-1 min-w-35">
+                        <label class="block text-xs text-[#888] mb-1"
                             >行程密碼</label
                         >
                         <input
@@ -180,7 +238,13 @@
                                 📍 {{ trip.location || "未設定地點" }}
                             </p>
                             <p class="my-0.5 text-[13px] text-[#777]">
-                                📅 {{ trip.travel_date || "未設定日期" }}
+                                📅
+                                {{
+                                    trip.end_date &&
+                                    trip.end_date !== trip.travel_date
+                                        ? `${trip.travel_date} ~ ${trip.end_date}`
+                                        : trip.travel_date || "未設定日期"
+                                }}
                             </p>
                         </div>
                         <button
@@ -202,18 +266,40 @@ const { $supabase: supabase } = useNuxtApp();
 
 const trips = ref([]);
 
-// 管理員暱稱
-const ADMIN_NICKNAME = "你自己的暱稱"; // 換成你自己要用的暱稱
-const nickname = ref("");
-const nicknameInput = ref("");
-const showNicknameModal = ref(false);
-const isAdmin = computed(() => nickname.value === ADMIN_NICKNAME);
+// 登入狀態與管理員判斷（來自 profiles.is_admin，並配合 RLS 在資料庫層級實際擋權）
+const { session, profile, isAdmin, init, login, register, logout } = useAuth();
 
-const confirmNickname = (name) => {
-    if (!name.trim()) return;
-    nickname.value = name.trim();
-    localStorage.setItem("nickname", nickname.value);
-    showNicknameModal.value = false;
+const showAuthModal = ref(false);
+const authMode = ref("login");
+const authForm = ref({ email: "", password: "", nickname: "" });
+const authError = ref("");
+
+const submitAuth = async () => {
+    authError.value = "";
+    const result =
+        authMode.value === "login"
+            ? await login(authForm.value.email, authForm.value.password)
+            : await register(
+                  authForm.value.email,
+                  authForm.value.password,
+                  authForm.value.nickname,
+              );
+
+    if (result.error) {
+        authError.value =
+            authMode.value === "login"
+                ? "登入失敗，請檢查帳號密碼"
+                : "註冊失敗：" + result.error.message;
+        return;
+    }
+
+    if (result.needsEmailConfirmation) {
+        authError.value = "註冊成功！請先去信箱點擊確認信再回來登入。";
+        return;
+    }
+
+    showAuthModal.value = false;
+    authForm.value = { email: "", password: "", nickname: "" };
 };
 
 // 年份分組
@@ -250,7 +336,13 @@ const formatDay = (date) => {
 };
 
 // 新增行程表單數據
-const newTrip = ref({ title: "", location: "", travel_date: "", password: "" });
+const newTrip = ref({
+    title: "",
+    location: "",
+    travel_date: "",
+    end_date: "",
+    password: "",
+});
 
 const addTrip = async () => {
     if (!newTrip.value.title.trim() || !newTrip.value.password.trim()) return;
@@ -261,6 +353,7 @@ const addTrip = async () => {
             title: newTrip.value.title,
             location: newTrip.value.location,
             travel_date: newTrip.value.travel_date || null,
+            end_date: newTrip.value.end_date || null,
             password: newTrip.value.password,
             places: [],
         })
@@ -273,6 +366,7 @@ const addTrip = async () => {
             title: "",
             location: "",
             travel_date: "",
+            end_date: "",
             password: "",
         };
     }
@@ -284,21 +378,16 @@ const removeTrip = async (id) => {
     trips.value = trips.value.filter((t) => t.id !== id);
 };
 
-// 初始化暱稱
+// 初始化登入狀態
 onMounted(() => {
-    const saved = localStorage.getItem("nickname");
-    if (saved) {
-        nickname.value = saved;
-    } else {
-        showNicknameModal.value = true;
-    }
+    init();
 });
 
 // 初始化行程列表
 onMounted(async () => {
     const { data } = await supabase
         .from("trips")
-        .select("id, title, location, travel_date")
+        .select("id, title, location, travel_date, end_date")
         .order("travel_date", { ascending: false });
     trips.value = data || [];
 });
