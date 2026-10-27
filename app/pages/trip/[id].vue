@@ -55,8 +55,19 @@
 
             <!-- 行程內容（密碼驗證通過後才顯示） -->
             <template v-else>
-                <!-- 天數分頁 -->
+                <!-- 分頁：總覽與各天 -->
                 <div class="flex gap-2 mb-6 flex-wrap">
+                    <button
+                        @click="activeDay = 0"
+                        :class="[
+                            'px-4 py-2 rounded-full text-sm cursor-pointer border-none',
+                            activeDay === 0
+                                ? 'bg-[#e76f51] text-white'
+                                : 'bg-white text-[#555] shadow-[0_2px_8px_rgba(0,0,0,0.05)]',
+                        ]"
+                    >
+                        📋 總覽
+                    </button>
                     <button
                         v-for="day in totalDays"
                         :key="day"
@@ -72,238 +83,407 @@
                     </button>
                 </div>
 
-                <!-- 景點清單 -->
-                <h2 class="text-lg font-bold text-[#2a9d8f] mb-3">
-                    Day {{ activeDay }} 行程
-                    <span class="text-xs font-normal text-[#999] ml-1"
-                        >共 {{ placesForActiveDay.length }} 個景點</span
+                <!-- 總覽頁 -->
+                <div v-if="activeDay === 0" class="flex flex-col gap-6">
+                    <section
+                        class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
                     >
-                </h2>
-                <div class="flex flex-col gap-3">
-                    <template
-                        v-for="(place, index) in placesForActiveDay"
-                        :key="place.id"
-                    >
-                        <!-- 與上一個景點之間的交通方式 -->
-                        <div
-                            v-if="index > 0 && (canEdit || place.transport)"
-                            class="flex items-center gap-2 pl-4 text-xs text-[#888]"
-                        >
-                            <span>↓</span>
-                            <template v-if="canEdit">
-                                <select
-                                    :value="place.transport || ''"
-                                    @change="
-                                        updatePlaceField(
-                                            place.id,
-                                            'transport',
-                                            $event.target.value,
-                                        )
-                                    "
-                                    class="px-2 py-1 border border-gray-200 rounded-lg bg-white"
-                                >
-                                    <option value="">選擇交通方式</option>
-                                    <option
-                                        v-for="t in transportOptions"
-                                        :key="t"
-                                        :value="t"
-                                    >
-                                        {{ t }}
-                                    </option>
-                                </select>
-                                <input
-                                    :value="place.transport_duration || ''"
-                                    @change="
-                                        updatePlaceField(
-                                            place.id,
-                                            'transport_duration',
-                                            $event.target.value.trim(),
-                                        )
-                                    "
-                                    placeholder="耗時，例如 30 分鐘"
-                                    class="px-2 py-1 border border-gray-200 rounded-lg w-36"
-                                />
-                            </template>
-                            <span v-else>
-                                {{ place.transport }}
-                                <template v-if="place.transport_duration">
-                                    · {{ place.transport_duration }}
-                                </template>
-                            </span>
-                        </div>
-                        <div
-                            class="bg-white rounded-xl p-4 shadow-[0_4px_16px_rgba(0,0,0,0.05)] border-l-4 border-[#2a9d8f] flex items-start gap-3"
-                        >
+                        <h2 class="font-bold text-[#2a9d8f] mb-3">
+                            👥 參與成員
+                        </h2>
+                        <div v-if="members.length" class="flex flex-wrap gap-2">
                             <span
-                                class="w-7 h-7 shrink-0 rounded-full bg-[#2a9d8f] text-white text-sm font-bold flex items-center justify-center"
-                                >{{ index + 1 }}</span
+                                v-for="(m, i) in members"
+                                :key="i"
+                                class="px-3 py-1 bg-[#eef6f4] text-[#2a9d8f] rounded-full text-sm"
+                                >{{ m }}</span
                             >
-                            <!-- 編輯模式 -->
-                            <div
-                                v-if="editingId === place.id"
-                                class="flex-1 flex flex-col gap-2"
+                        </div>
+                        <p v-else class="text-sm text-[#999]">
+                            尚未指定參與成員
+                        </p>
+                    </section>
+
+                    <section
+                        class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
+                    >
+                        <h2 class="font-bold text-[#2a9d8f] mb-3">
+                            🗓️ 行程總覽
+                        </h2>
+                        <div
+                            v-for="day in totalDays"
+                            :key="day"
+                            class="flex gap-3 py-2 text-sm border-b border-gray-100 last:border-b-0"
+                        >
+                            <button
+                                @click="activeDay = day"
+                                class="shrink-0 font-bold text-[#e76f51] border-none bg-transparent cursor-pointer p-0"
+                            >
+                                Day {{ day }}
+                            </button>
+                            <span
+                                v-if="placesByDay(day).length"
+                                class="text-[#555]"
+                                >{{
+                                    placesByDay(day)
+                                        .map((p) => p.name)
+                                        .join(" → ")
+                                }}</span
+                            >
+                            <span v-else class="text-[#999]">尚未安排</span>
+                        </div>
+                    </section>
+
+                    <section
+                        class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
+                    >
+                        <h2 class="font-bold text-[#2a9d8f] mb-3">
+                            🎒 必帶物品
+                        </h2>
+                        <ul class="list-none p-0 m-0">
+                            <li
+                                v-for="item in overview.packing"
+                                :key="item.id"
+                                class="flex items-center gap-2 py-1 text-sm"
                             >
                                 <input
-                                    v-model="editForm.name"
-                                    placeholder="景點名稱"
-                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border"
+                                    type="checkbox"
+                                    :checked="item.checked"
+                                    :disabled="!canEdit"
+                                    @change="togglePacking(item.id)"
                                 />
-                                <input
-                                    v-model="editForm.address"
-                                    placeholder="地址（選填）"
-                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border"
-                                />
-                                <textarea
-                                    v-model="editForm.description"
-                                    placeholder="景點說明（選填）"
-                                    rows="2"
-                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border"
-                                ></textarea>
-                                <input
-                                    v-model="editForm.link"
-                                    placeholder="參考連結（選填）"
-                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border"
-                                />
-                                <label class="text-xs text-[#888]">
-                                    移到第
-                                    <select
-                                        v-model.number="editForm.day"
-                                        class="mx-1 px-2 py-1 border border-gray-200 rounded-lg bg-white"
-                                    >
-                                        <option
-                                            v-for="d in totalDays"
-                                            :key="d"
-                                            :value="d"
-                                        >
-                                            {{ d }}
-                                        </option>
-                                    </select>
-                                    天
-                                </label>
-                                <div class="flex gap-2">
-                                    <button
-                                        @click="saveEdit"
-                                        class="px-4 py-1.5 bg-[#2a9d8f] text-white border-none rounded-lg cursor-pointer text-sm"
-                                    >
-                                        儲存
-                                    </button>
-                                    <button
-                                        @click="editingId = null"
-                                        class="px-4 py-1.5 bg-transparent text-[#888] border border-gray-200 rounded-lg cursor-pointer text-sm"
-                                    >
-                                        取消
-                                    </button>
-                                </div>
-                            </div>
-                            <div v-else class="flex-1">
-                                <h3 class="font-bold mb-1">
-                                    📍 {{ place.name }}
-                                </h3>
-                                <p
-                                    v-if="place.address"
-                                    class="text-xs text-[#888] mb-1"
+                                <span
+                                    :class="
+                                        item.checked
+                                            ? 'line-through text-[#aaa]'
+                                            : 'text-[#555]'
+                                    "
+                                    >{{ item.text }}</span
                                 >
-                                    🏠 {{ place.address }}
-                                </p>
-                                <p
-                                    v-if="place.description"
-                                    class="text-sm text-[#555] mb-1"
-                                >
-                                    {{ place.description }}
-                                </p>
-                                <a
-                                    v-if="place.link"
-                                    :href="place.link"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="text-xs text-[#2563eb] underline"
-                                >
-                                    🔗 參考連結
-                                </a>
-                                <p class="text-xs text-[#aaa] mt-2">
-                                    新增者：{{ place.added_by || "未知" }}
-                                </p>
-                            </div>
-                            <div
-                                v-if="canEdit && editingId !== place.id"
-                                class="flex items-center gap-1"
-                            >
                                 <button
-                                    @click="startEdit(place)"
-                                    class="border-none bg-transparent text-[#999] text-sm cursor-pointer"
-                                >
-                                    ✏️ 編輯
-                                </button>
-                                <button
-                                    @click="removePlace(place.id)"
-                                    class="border-none bg-transparent text-[#ccc] text-lg cursor-pointer"
+                                    v-if="canEdit"
+                                    @click="removePacking(item.id)"
+                                    class="ml-auto border-none bg-transparent text-[#ccc] cursor-pointer"
                                 >
                                     ×
                                 </button>
-                            </div>
+                            </li>
+                        </ul>
+                        <p
+                            v-if="!overview.packing.length"
+                            class="text-sm text-[#999]"
+                        >
+                            尚未列出必帶物品
+                        </p>
+                        <div v-if="canEdit" class="flex gap-2 mt-3">
+                            <input
+                                v-model="newPacking"
+                                placeholder="新增物品，例如：護照"
+                                @keyup.enter="addPacking"
+                                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
+                            />
+                            <button
+                                @click="addPacking"
+                                class="px-3 py-2 bg-[#2a9d8f] text-white border-none rounded-lg cursor-pointer text-sm whitespace-nowrap"
+                            >
+                                新增
+                            </button>
                         </div>
-                    </template>
-                    <p
-                        v-if="!placesForActiveDay.length"
-                        class="text-sm text-[#999] text-center py-6"
+                    </section>
+
+                    <section
+                        class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
                     >
-                        這天還沒有景點，開始新增吧！
-                    </p>
+                        <h2 class="font-bold text-[#2a9d8f] mb-3">
+                            ⚠️ 提醒事項
+                        </h2>
+                        <ul class="list-none p-0 m-0">
+                            <li
+                                v-for="item in overview.reminders"
+                                :key="item.id"
+                                class="flex items-start gap-2 py-1 text-sm text-[#555]"
+                            >
+                                <span>•</span>
+                                <span class="flex-1">{{ item.text }}</span>
+                                <button
+                                    v-if="canEdit"
+                                    @click="removeReminder(item.id)"
+                                    class="border-none bg-transparent text-[#ccc] cursor-pointer"
+                                >
+                                    ×
+                                </button>
+                            </li>
+                        </ul>
+                        <p
+                            v-if="!overview.reminders.length"
+                            class="text-sm text-[#999]"
+                        >
+                            尚無提醒事項
+                        </p>
+                        <div v-if="canEdit" class="flex gap-2 mt-3">
+                            <input
+                                v-model="newReminder"
+                                placeholder="新增提醒，例如：集合時間 7:30"
+                                @keyup.enter="addReminder"
+                                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
+                            />
+                            <button
+                                @click="addReminder"
+                                class="px-3 py-2 bg-[#2a9d8f] text-white border-none rounded-lg cursor-pointer text-sm whitespace-nowrap"
+                            >
+                                新增
+                            </button>
+                        </div>
+                    </section>
                 </div>
 
-                <!-- 新增景點表單（僅管理員或行程參與者可見） -->
-                <div
-                    v-if="canEdit"
-                    class="mt-8 rounded-2xl p-6 bg-[#eef6f4] border-2 border-dashed border-[#2a9d8f]/50"
-                >
-                    <div class="flex items-center gap-3 mb-4">
-                        <span
-                            class="w-9 h-9 bg-[#e76f51] text-white rounded-full flex items-center justify-center text-lg"
-                            >+</span
+                <template v-else>
+                    <!-- 景點清單 -->
+                    <h2 class="text-lg font-bold text-[#2a9d8f] mb-3">
+                        Day {{ activeDay }} 行程
+                        <span class="text-xs font-normal text-[#999] ml-1"
+                            >共 {{ placesForActiveDay.length }} 個景點</span
                         >
-                        <div>
-                            <div class="text-[11px] tracking-wide text-[#999]">
-                                ADD A NEW PLACE
+                    </h2>
+                    <div class="flex flex-col gap-3">
+                        <template
+                            v-for="(place, index) in placesForActiveDay"
+                            :key="place.id"
+                        >
+                            <!-- 與上一個景點之間的交通方式 -->
+                            <div
+                                v-if="index > 0 && (canEdit || place.transport)"
+                                class="flex items-center gap-2 pl-4 text-xs text-[#888]"
+                            >
+                                <span>↓</span>
+                                <template v-if="canEdit">
+                                    <select
+                                        :value="place.transport || ''"
+                                        @change="
+                                            updatePlaceField(
+                                                place.id,
+                                                'transport',
+                                                $event.target.value,
+                                            )
+                                        "
+                                        class="px-2 py-1 border border-gray-200 rounded-lg bg-white"
+                                    >
+                                        <option value="">選擇交通方式</option>
+                                        <option
+                                            v-for="t in transportOptions"
+                                            :key="t"
+                                            :value="t"
+                                        >
+                                            {{ t }}
+                                        </option>
+                                    </select>
+                                    <input
+                                        :value="place.transport_duration || ''"
+                                        @change="
+                                            updatePlaceField(
+                                                place.id,
+                                                'transport_duration',
+                                                $event.target.value.trim(),
+                                            )
+                                        "
+                                        placeholder="耗時，例如 30 分鐘"
+                                        class="px-2 py-1 border border-gray-200 rounded-lg w-36"
+                                    />
+                                </template>
+                                <span v-else>
+                                    {{ place.transport }}
+                                    <template v-if="place.transport_duration">
+                                        · {{ place.transport_duration }}
+                                    </template>
+                                </span>
                             </div>
-                            <div class="font-bold">
-                                新增景點到 Day {{ activeDay }}
+                            <div
+                                :draggable="canEdit && editingId !== place.id"
+                                @dragstart="draggingId = place.id"
+                                @dragover.prevent
+                                @drop.prevent="dropOn(place.id)"
+                                @dragend="draggingId = null"
+                                :class="[
+                                    'bg-white rounded-xl p-4 shadow-[0_4px_16px_rgba(0,0,0,0.05)] border-l-4 border-[#2a9d8f] flex items-start gap-3',
+                                    canEdit && editingId !== place.id
+                                        ? 'cursor-grab'
+                                        : '',
+                                    draggingId === place.id ? 'opacity-40' : '',
+                                ]"
+                            >
+                                <span
+                                    class="w-7 h-7 shrink-0 rounded-full bg-[#2a9d8f] text-white text-sm font-bold flex items-center justify-center"
+                                    >{{ index + 1 }}</span
+                                >
+                                <!-- 編輯模式 -->
+                                <div
+                                    v-if="editingId === place.id"
+                                    class="flex-1 flex flex-col gap-2"
+                                >
+                                    <input
+                                        v-model="editForm.name"
+                                        placeholder="景點名稱"
+                                        class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border"
+                                    />
+                                    <input
+                                        v-model="editForm.address"
+                                        placeholder="地址（選填）"
+                                        class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border"
+                                    />
+                                    <textarea
+                                        v-model="editForm.description"
+                                        placeholder="景點說明（選填）"
+                                        rows="2"
+                                        class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border"
+                                    ></textarea>
+                                    <input
+                                        v-model="editForm.link"
+                                        placeholder="參考連結（選填）"
+                                        class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border"
+                                    />
+                                    <label class="text-xs text-[#888]">
+                                        移到第
+                                        <select
+                                            v-model.number="editForm.day"
+                                            class="mx-1 px-2 py-1 border border-gray-200 rounded-lg bg-white"
+                                        >
+                                            <option
+                                                v-for="d in totalDays"
+                                                :key="d"
+                                                :value="d"
+                                            >
+                                                {{ d }}
+                                            </option>
+                                        </select>
+                                        天
+                                    </label>
+                                    <div class="flex gap-2">
+                                        <button
+                                            @click="saveEdit"
+                                            class="px-4 py-1.5 bg-[#2a9d8f] text-white border-none rounded-lg cursor-pointer text-sm"
+                                        >
+                                            儲存
+                                        </button>
+                                        <button
+                                            @click="editingId = null"
+                                            class="px-4 py-1.5 bg-transparent text-[#888] border border-gray-200 rounded-lg cursor-pointer text-sm"
+                                        >
+                                            取消
+                                        </button>
+                                    </div>
+                                </div>
+                                <div v-else class="flex-1">
+                                    <h3 class="font-bold mb-1">
+                                        📍 {{ place.name }}
+                                    </h3>
+                                    <p
+                                        v-if="place.address"
+                                        class="text-xs text-[#888] mb-1"
+                                    >
+                                        🏠 {{ place.address }}
+                                    </p>
+                                    <p
+                                        v-if="place.description"
+                                        class="text-sm text-[#555] mb-1"
+                                    >
+                                        {{ place.description }}
+                                    </p>
+                                    <a
+                                        v-if="place.link"
+                                        :href="place.link"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="text-xs text-[#2563eb] underline"
+                                    >
+                                        🔗 參考連結
+                                    </a>
+                                    <p class="text-xs text-[#aaa] mt-2">
+                                        新增者：{{ place.added_by || "未知" }}
+                                    </p>
+                                </div>
+                                <div
+                                    v-if="canEdit && editingId !== place.id"
+                                    class="flex items-center gap-1"
+                                >
+                                    <button
+                                        @click="startEdit(place)"
+                                        class="border-none bg-transparent text-[#999] text-sm cursor-pointer"
+                                    >
+                                        ✏️ 編輯
+                                    </button>
+                                    <button
+                                        @click="removePlace(place.id)"
+                                        class="border-none bg-transparent text-[#ccc] text-lg cursor-pointer"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                        <p
+                            v-if="!placesForActiveDay.length"
+                            class="text-sm text-[#999] text-center py-6"
+                        >
+                            這天還沒有景點，開始新增吧！
+                        </p>
+                    </div>
+
+                    <!-- 新增景點表單（僅管理員或行程參與者可見） -->
+                    <div
+                        v-if="canEdit"
+                        class="mt-8 rounded-2xl p-6 bg-[#eef6f4] border-2 border-dashed border-[#2a9d8f]/50"
+                    >
+                        <div class="flex items-center gap-3 mb-4">
+                            <span
+                                class="w-9 h-9 bg-[#e76f51] text-white rounded-full flex items-center justify-center text-lg"
+                                >+</span
+                            >
+                            <div>
+                                <div
+                                    class="text-[11px] tracking-wide text-[#999]"
+                                >
+                                    ADD A NEW PLACE
+                                </div>
+                                <div class="font-bold">
+                                    新增景點到 Day {{ activeDay }}
+                                </div>
                             </div>
                         </div>
+                        <div class="flex flex-col gap-2">
+                            <input
+                                v-model="newPlace.name"
+                                placeholder="景點名稱"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border bg-white"
+                            />
+                            <input
+                                v-model="newPlace.address"
+                                placeholder="地址（選填）"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border bg-white"
+                            />
+                            <textarea
+                                v-model="newPlace.description"
+                                placeholder="景點說明（選填）"
+                                rows="2"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border bg-white"
+                            ></textarea>
+                            <input
+                                v-model="newPlace.link"
+                                placeholder="參考連結（選填）"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border bg-white"
+                            />
+                            <button
+                                @click="addPlace"
+                                class="px-5 py-2 bg-[#2a9d8f] text-white border-none rounded-lg cursor-pointer whitespace-nowrap self-start"
+                            >
+                                + 新增景點
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex flex-col gap-2">
-                        <input
-                            v-model="newPlace.name"
-                            placeholder="景點名稱"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border bg-white"
-                        />
-                        <input
-                            v-model="newPlace.address"
-                            placeholder="地址（選填）"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border bg-white"
-                        />
-                        <textarea
-                            v-model="newPlace.description"
-                            placeholder="景點說明（選填）"
-                            rows="2"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border bg-white"
-                        ></textarea>
-                        <input
-                            v-model="newPlace.link"
-                            placeholder="參考連結（選填）"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg box-border bg-white"
-                        />
-                        <button
-                            @click="addPlace"
-                            class="px-5 py-2 bg-[#2a9d8f] text-white border-none rounded-lg cursor-pointer whitespace-nowrap self-start"
-                        >
-                            + 新增景點
-                        </button>
-                    </div>
-                </div>
+                </template>
 
                 <!-- 管理行程參與者（僅管理員可見） -->
                 <div
-                    v-if="isAdmin"
+                    v-if="isAdmin && activeDay === 0"
                     class="mt-6 bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
                 >
                     <h3 class="font-bold mb-3 text-sm">管理行程參與者</h3>
@@ -365,8 +545,14 @@ const isUnlocked = ref(false);
 const passwordInput = ref("");
 const passwordError = ref("");
 
-const activeDay = ref(1);
+const activeDay = ref(0); // 0 代表總覽頁
 const newPlace = ref({ name: "", address: "", description: "", link: "" });
+
+const overview = ref({ packing: [], reminders: [] });
+const members = ref([]);
+const newPacking = ref("");
+const newReminder = ref("");
+const draggingId = ref(null);
 
 // 是否可以編輯景點：管理員或被指定為該行程參與者
 const { session, profile, isAdmin, init } = useAuth();
@@ -392,6 +578,8 @@ const tripDateRange = computed(() => {
 const placesForActiveDay = computed(() =>
     places.value.filter((p) => (p.day || 1) === activeDay.value),
 );
+
+const placesByDay = (day) => places.value.filter((p) => (p.day || 1) === day);
 
 const checkParticipant = async () => {
     if (!session.value) {
@@ -427,10 +615,97 @@ const fetchTripTitle = async () => {
 const fetchTripPlaces = async () => {
     const { data } = await supabase
         .from("trips")
-        .select("places")
+        .select("places, overview")
         .eq("id", tripId)
         .single();
-    if (data) places.value = data.places || [];
+    if (data) {
+        places.value = data.places || [];
+        overview.value = normalizeOverview(data.overview);
+    }
+};
+
+const normalizeOverview = (raw) => ({
+    packing: raw?.packing || [],
+    reminders: raw?.reminders || [],
+});
+
+// 參與成員暱稱（透過 RPC，一般訪客也能看到但看不到 Email）
+const fetchMembers = async () => {
+    const { data } = await supabase.rpc("get_trip_members", {
+        p_trip_id: tripId,
+    });
+    members.value = (data || []).map((row) => row.nickname);
+};
+
+const updateOverview = async (next) => {
+    overview.value = next;
+    await supabase.from("trips").update({ overview: next }).eq("id", tripId);
+};
+
+const addPacking = () => {
+    const text = newPacking.value.trim();
+    if (!text) return;
+    updateOverview({
+        ...overview.value,
+        packing: [
+            ...overview.value.packing,
+            { id: crypto.randomUUID(), text, checked: false },
+        ],
+    });
+    newPacking.value = "";
+};
+
+const togglePacking = (id) => {
+    updateOverview({
+        ...overview.value,
+        packing: overview.value.packing.map((i) =>
+            i.id === id ? { ...i, checked: !i.checked } : i,
+        ),
+    });
+};
+
+const removePacking = (id) => {
+    updateOverview({
+        ...overview.value,
+        packing: overview.value.packing.filter((i) => i.id !== id),
+    });
+};
+
+const addReminder = () => {
+    const text = newReminder.value.trim();
+    if (!text) return;
+    updateOverview({
+        ...overview.value,
+        reminders: [
+            ...overview.value.reminders,
+            { id: crypto.randomUUID(), text },
+        ],
+    });
+    newReminder.value = "";
+};
+
+const removeReminder = (id) => {
+    updateOverview({
+        ...overview.value,
+        reminders: overview.value.reminders.filter((i) => i.id !== id),
+    });
+};
+
+// 拖曳排序：只重排目前這一天的景點
+const dropOn = (targetId) => {
+    const fromId = draggingId.value;
+    draggingId.value = null;
+    if (!fromId || fromId === targetId) return;
+
+    const dayList = [...placesForActiveDay.value];
+    const from = dayList.findIndex((p) => p.id === fromId);
+    const to = dayList.findIndex((p) => p.id === targetId);
+    if (from < 0 || to < 0) return;
+
+    const [moved] = dayList.splice(from, 1);
+    dayList.splice(to, 0, moved);
+    const others = places.value.filter((p) => (p.day || 1) !== activeDay.value);
+    updatePlaces([...others, ...dayList]);
 };
 
 // 訂閱 Supabase Realtime 即時推播頻道
@@ -449,11 +724,23 @@ const subscribeRealtime = () => {
                 if (payload.new && payload.new.places) {
                     places.value = payload.new.places;
                 }
+                if (payload.new) {
+                    overview.value = normalizeOverview(payload.new.overview);
+                }
             },
         )
         .subscribe((status) => {
             if (status === "SUBSCRIBED") isConnected.value = true;
         });
+};
+
+// 解鎖行程：載入景點並訂閱即時同步
+const unlock = async () => {
+    if (isUnlocked.value) return;
+    isUnlocked.value = true;
+    await fetchTripPlaces();
+    await fetchMembers();
+    subscribeRealtime();
 };
 
 // 向資料庫驗證密碼（密碼本身不會回傳到前端）
@@ -469,11 +756,10 @@ const submitPassword = async () => {
     }
 
     if (data === true) {
-        localStorage.setItem(`trip_unlocked_${tripId}`, "true");
-        isUnlocked.value = true;
+        // sessionStorage 在關閉瀏覽器後會清除，下次需重新輸入密碼
+        sessionStorage.setItem(`trip_unlocked_${tripId}`, "true");
         passwordError.value = "";
-        await fetchTripPlaces();
-        subscribeRealtime();
+        await unlock();
     } else {
         passwordError.value = "密碼錯誤";
     }
@@ -579,6 +865,7 @@ const fetchParticipants = async () => {
         nickname: row.profiles?.nickname,
         email: row.profiles?.email,
     }));
+    await fetchMembers();
 };
 
 const addParticipant = async () => {
@@ -623,16 +910,21 @@ onMounted(async () => {
     await checkParticipant();
     await fetchTripTitle();
 
-    if (localStorage.getItem(`trip_unlocked_${tripId}`) === "true") {
-        isUnlocked.value = true;
-        await fetchTripPlaces();
-        subscribeRealtime();
+    if (sessionStorage.getItem(`trip_unlocked_${tripId}`) === "true") {
+        await unlock();
     }
+
+    // 管理員與被邀請的參與者免輸入密碼
+    if (canEdit.value) await unlock();
 
     if (isAdmin.value) await fetchParticipants();
 });
 
 watch(session, checkParticipant);
+
+watch(canEdit, (value) => {
+    if (value) unlock();
+});
 
 onUnmounted(() => {
     if (channel) supabase.removeChannel(channel);
