@@ -89,36 +89,48 @@
             </header>
 
             <!-- Hero -->
-            <section class="mb-8">
-                <div>
-                    <div class="text-[#e76f51] text-[13px] mb-2">
-                        — 今天也要出發！
-                    </div>
-                    <h1 class="text-[40px] leading-[1.3] mb-4">
-                        把期待，<br />
-                        <span class="text-[#2a9d8f]">排成一場旅行。</span>
-                    </h1>
-                    <p class="text-[#666] max-w-100 mb-6">
-                        記下想去的地方，讓每一個目的地都成為故事的開頭。
-                    </p>
-                    <div class="flex gap-8">
-                        <div>
-                            <div class="text-[22px] font-bold">
-                                {{ trips.length }}
+            <section class="mb-8 px-2">
+                <div class="flex items-center gap-6">
+                    <div>
+                        <div class="text-[#e76f51] text-[13px] mb-2">
+                            — 今天也要出發！
+                        </div>
+                        <h1 class="text-[40px] leading-[1.3] mb-4">
+                            把期待，<br />
+                            <span class="text-[#2a9d8f]">排成一場旅行。</span>
+                        </h1>
+                        <p class="text-[#666] max-w-100 mb-6">
+                            記下想去的地方，讓每一個目的地都成為故事的開頭。
+                        </p>
+                        <div class="flex gap-8 items-center">
+                            <div>
+                                <div class="text-[22px] font-bold">
+                                    {{ trips.length }}
+                                </div>
+                                <div class="text-xs text-[#888]">趟旅程</div>
                             </div>
-                            <div class="text-xs text-[#888]">趟旅程</div>
-                        </div>
-                        <div>
-                            <div class="text-[22px] font-bold">
-                                {{ yearCount }}
+                            <div>
+                                <div class="text-[22px] font-bold">
+                                    {{ yearCount }}
+                                </div>
+                                <div class="text-xs text-[#888]">探索年份</div>
                             </div>
-                            <div class="text-xs text-[#888]">探索年份</div>
-                        </div>
-                        <div>
-                            <div class="text-[22px] font-bold">∞</div>
-                            <div class="text-xs text-[#888]">種可能</div>
+                            <div>
+                                <div class="text-[22px] font-bold">∞</div>
+                                <div class="text-xs text-[#888]">種可能</div>
+                            </div>
+                            <img
+                                src="../assets/images/gogogo.gif"
+                                alt="旅行動畫"
+                                class="w-30 h-40 object-contain md:hidden"
+                            />
                         </div>
                     </div>
+                    <img
+                        src="../assets/images/gogogo.gif"
+                        alt="旅行動畫"
+                        class="w-30 h-40 object-contain md:block hidden"
+                    />
                 </div>
             </section>
 
