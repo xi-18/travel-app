@@ -44,7 +44,23 @@ export default defineNuxtConfig({
             ],
         },
         workbox: {
+            globPatterns: ["**/*.{js,css,html,png,svg,ico,gif}"],
+            navigateFallback: "/",
             cleanupOutdatedCaches: true,
+            runtimeCaching: [
+                {
+                    urlPattern: /^https:\/\//,
+                    handler: "NetworkFirst",
+                    options: {
+                        cacheName: "https-calls",
+                        networkTimeoutSeconds: 5,
+                        expiration: {
+                            maxEntries: 150,
+                            maxAgeSeconds: 5 * 60, // 5 分鐘
+                        },
+                    },
+                },
+            ],
         },
     },
 });
