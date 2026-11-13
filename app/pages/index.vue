@@ -60,7 +60,7 @@
             <!-- Header -->
             <header class="flex justify-between items-center mb-10">
                 <div class="flex items-center gap-2.5">
-                    <span class="text-[28px]">🧭</span>
+                    <img src="/appicon.png" class="w-20" />
                     <div>
                         <div class="text-[11px] tracking-wide text-[#999]">
                             MAKE MEMORIES
