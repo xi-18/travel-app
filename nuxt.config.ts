@@ -18,11 +18,8 @@ export default defineNuxtConfig({
     modules: ["@vite-pwa/nuxt"],
 
     pwa: {
+        strategies: "injectManifest",
         registerType: "autoUpdate",
-        workbox: {
-            globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
-            navigateFallback: "/",
-        },
         manifest: {
             name: "Travel App",
             short_name: "Travel",
