@@ -1,6 +1,5 @@
 import tailwindcss from "@tailwindcss/vite";
 
-// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     compatibilityDate: "2025-07-15",
     devtools: { enabled: true },
@@ -19,8 +18,10 @@ export default defineNuxtConfig({
     modules: ["@vite-pwa/nuxt"],
 
     pwa: {
+        registerType: "autoUpdate",
         workbox: {
             globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
+            navigateFallback: "/",
         },
         manifest: {
             name: "Travel App",
@@ -29,17 +30,18 @@ export default defineNuxtConfig({
             theme_color: "#ffffff",
             background_color: "#ffffff",
             display: "standalone",
+            orientation: "portrait-primary",
             start_url: "/",
             scope: "/",
             icons: [
                 {
-                    src: "appicon.png",
+                    src: "/appicon.png", // ✅ 改為絕對路徑
                     sizes: "192x192",
                     type: "image/png",
                     purpose: "any",
                 },
                 {
-                    src: "splashicon.png",
+                    src: "/splashicon.png", // ✅ 改為絕對路徑
                     sizes: "512x512",
                     type: "image/png",
                     purpose: "any",
