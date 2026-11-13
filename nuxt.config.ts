@@ -18,7 +18,6 @@ export default defineNuxtConfig({
     modules: ["@vite-pwa/nuxt"],
 
     pwa: {
-        strategies: "injectManifest",
         registerType: "autoUpdate",
         manifest: {
             name: "Travel App",
@@ -27,23 +26,25 @@ export default defineNuxtConfig({
             theme_color: "#ffffff",
             background_color: "#ffffff",
             display: "standalone",
-            orientation: "portrait-primary",
             start_url: "/",
             scope: "/",
             icons: [
                 {
-                    src: "/appicon.png", // ✅ 改為絕對路徑
+                    src: "/appicon.png",
                     sizes: "192x192",
                     type: "image/png",
                     purpose: "any",
                 },
                 {
-                    src: "/splashicon.png", // ✅ 改為絕對路徑
+                    src: "/splashicon.png",
                     sizes: "512x512",
                     type: "image/png",
                     purpose: "any",
                 },
             ],
+        },
+        workbox: {
+            cleanupOutdatedCaches: true,
         },
     },
 });
