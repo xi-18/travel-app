@@ -25,7 +25,6 @@
                 📅 {{ tripDateRange }}
             </p>
 
-            <!-- 密碼驗證畫面 -->
             <div
                 v-if="!isUnlocked"
                 class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
@@ -33,21 +32,20 @@
                 <p class="text-sm text-[#555] mb-3">
                     請輸入這個行程的密碼才能查看內容
                 </p>
-                <div class="flex gap-2">
+                <form @submit.prevent="submitPassword" class="flex gap-2">
                     <input
                         v-model="passwordInput"
                         type="password"
                         placeholder="輸入密碼"
-                        @keyup.enter="submitPassword"
                         class="flex-1 px-3 py-2 border border-gray-200 rounded-lg box-border"
                     />
                     <button
-                        @click="submitPassword"
+                        type="submit"
                         class="px-5 py-2 bg-[#2a9d8f] text-white border-none rounded-lg cursor-pointer whitespace-nowrap"
                     >
                         解鎖
                     </button>
-                </div>
+                </form>
                 <p v-if="passwordError" class="text-[#ef4444] text-sm mt-2">
                     {{ passwordError }}
                 </p>
@@ -55,6 +53,41 @@
 
             <!-- 行程內容（密碼驗證通過後才顯示） -->
             <template v-else>
+                <!-- 刪除確認對話框 -->
+                <div
+                    v-if="showConfirm"
+                    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6"
+                    @click="showConfirm = false"
+                >
+                    <div
+                        class="bg-white rounded-2xl p-6 w-full max-w-xs shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
+                        @click.stop
+                    >
+                        <h3 class="font-bold mb-2">
+                            {{ confirmConfig.title }}
+                        </h3>
+                        <p class="text-sm text-[#666] mb-5">
+                            {{ confirmConfig.message }}
+                        </p>
+                        <div class="flex gap-3">
+                            <button
+                                class="flex-1 py-2 bg-gray-200 text-[#555] rounded-lg border-none cursor-pointer"
+                                @click="showConfirm = false"
+                            >
+                                取消
+                            </button>
+                            <button
+                                class="flex-1 py-2 bg-[#ef4444] text-white rounded-lg border-none cursor-pointer"
+                                @click="
+                                    confirmConfig.onConfirm?.();
+                                    showConfirm = false;
+                                "
+                            >
+                                確認刪除
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <!-- 分頁：總覽與各天 -->
                 <div class="flex gap-2 mb-6 flex-wrap">
                     <button
@@ -103,7 +136,7 @@
                             尚未指定參與成員
                         </p>
                     </section>
-
+                    <!-- 行程總覽 -->
                     <section
                         class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
                     >
@@ -133,7 +166,7 @@
                             <span v-else class="text-[#999]">尚未安排</span>
                         </div>
                     </section>
-
+                    <!-- 必帶物品 -->
                     <section
                         class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
                     >
@@ -144,29 +177,73 @@
                             <li
                                 v-for="item in overview.packing"
                                 :key="item.id"
-                                class="flex items-center gap-2 py-1 text-sm"
+                                class="flex items-center gap-2 py-2 text-sm border-b border-gray-100 last:border-b-0"
                             >
-                                <input
-                                    type="checkbox"
-                                    :checked="item.checked"
-                                    :disabled="!canEdit"
-                                    @change="togglePacking(item.id)"
-                                />
-                                <span
-                                    :class="
-                                        item.checked
-                                            ? 'line-through text-[#aaa]'
-                                            : 'text-[#555]'
+                                <template
+                                    v-if="
+                                        packingEditingId === item.id && canEdit
                                     "
-                                    >{{ item.text }}</span
                                 >
-                                <button
-                                    v-if="canEdit"
-                                    @click="removePacking(item.id)"
-                                    class="ml-auto border-none bg-transparent text-[#ccc] cursor-pointer"
-                                >
-                                    ×
-                                </button>
+                                    <!-- 編輯模式 -->
+                                    <input
+                                        type="checkbox"
+                                        disabled
+                                        class="w-5 h-5"
+                                    />
+                                    <input
+                                        v-model="packingEditForm.text"
+                                        placeholder="物品名稱"
+                                        class="flex-1 min-w-0 px-3 py-1.5 border border-[#2a9d8f] rounded-lg box-border text-sm"
+                                    />
+                                    <button
+                                        @click="saveEditPacking"
+                                        class="shrink-0 px-2.5 py-1.5 border-none bg-[#2a9d8f] text-white rounded-lg cursor-pointer text-sm font-bold"
+                                    >
+                                        ✓
+                                    </button>
+                                    <button
+                                        @click="cancelEditPacking"
+                                        class="shrink-0 px-2.5 py-1.5 border-none bg-gray-200 text-[#666] rounded-lg cursor-pointer text-sm"
+                                    >
+                                        ✕
+                                    </button>
+                                </template>
+                                <template v-else>
+                                    <!-- 檢視模式 -->
+                                    <input
+                                        type="checkbox"
+                                        :checked="item.checked"
+                                        :disabled="!canEdit"
+                                        @change="togglePacking(item.id)"
+                                        class="w-5 h-5"
+                                    />
+                                    <span
+                                        :class="
+                                            item.checked
+                                                ? 'line-through text-[#aaa]'
+                                                : 'text-[#555]'
+                                        "
+                                        class="flex-1"
+                                    >
+                                        {{ item.text }}
+                                    </span>
+                                    <div v-if="canEdit" class="flex gap-1">
+                                        <button
+                                            @click="startEditPacking(item)"
+                                            class="px-2 py-1 border-none bg-transparent text-[#2a9d8f] cursor-pointer text-sm hover:bg-[#f0f0f0] rounded transition-colors"
+                                            title="編輯"
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            @click="removePacking(item.id)"
+                                            class="px-2 py-1 border-none bg-transparent text-[#ef4444] cursor-pointer text-sm hover:bg-[#fee2e2] rounded transition-colors"
+                                            title="刪除"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                </template>
                             </li>
                         </ul>
                         <p
@@ -180,7 +257,7 @@
                                 v-model="newPacking"
                                 placeholder="新增物品，例如：護照"
                                 @keyup.enter="addPacking"
-                                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
+                                class="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
                             />
                             <button
                                 @click="addPacking"
@@ -190,7 +267,131 @@
                             </button>
                         </div>
                     </section>
+                    <!-- 購買清單 -->
+                    <!-- 購買清單 -->
+                    <section
+                        class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
+                    >
+                        <h2 class="font-bold text-[#2a9d8f] mb-3">
+                            🛒 購買清單
+                        </h2>
 
+                        <ul class="list-none p-0 m-0">
+                            <li
+                                v-for="item in overview.shopping"
+                                :key="item.id"
+                                class="flex items-center gap-2 py-2 text-sm border-b border-gray-100 last:border-b-0"
+                            >
+                                <template
+                                    v-if="
+                                        shoppingEditingId === item.id && canEdit
+                                    "
+                                >
+                                    <!-- 編輯模式 -->
+                                    <input
+                                        type="checkbox"
+                                        disabled
+                                        class="w-5 h-5"
+                                    />
+                                    <input
+                                        v-model="shoppingEditForm.text"
+                                        placeholder="購買項目"
+                                        class="flex-1 min-w-0 px-3 py-1.5 border border-[#2a9d8f] rounded-lg box-border text-sm"
+                                    />
+                                    <input
+                                        v-model="shoppingEditForm.quantity"
+                                        placeholder="數量"
+                                        class="w-16 min-w-0 px-2 py-1.5 border border-[#2a9d8f] rounded-lg box-border text-sm"
+                                    />
+                                    <button
+                                        @click="saveEditShopping"
+                                        class="shrink-0 px-2.5 py-1.5 border-none bg-[#2a9d8f] text-white rounded-lg cursor-pointer text-sm font-bold"
+                                    >
+                                        ✓
+                                    </button>
+                                    <button
+                                        @click="cancelEditShopping"
+                                        class="shrink-0 px-2.5 py-1.5 border-none bg-gray-200 text-[#666] rounded-lg cursor-pointer text-sm"
+                                    >
+                                        ✕
+                                    </button>
+                                </template>
+                                <template v-else>
+                                    <!-- 檢視模式 -->
+                                    <input
+                                        type="checkbox"
+                                        :checked="item.checked"
+                                        :disabled="!canEdit"
+                                        @change="toggleShopping(item.id)"
+                                        class="w-5 h-5"
+                                    />
+                                    <span
+                                        :class="
+                                            item.checked
+                                                ? 'line-through text-[#aaa]'
+                                                : 'text-[#555]'
+                                        "
+                                        class="flex-1"
+                                    >
+                                        {{ item.text }}
+                                    </span>
+                                    <span
+                                        v-if="item.quantity"
+                                        class="text-[#888] text-xs bg-gray-100 px-2 py-1 rounded"
+                                    >
+                                        × {{ item.quantity }}
+                                    </span>
+                                    <div v-if="canEdit" class="flex gap-1">
+                                        <button
+                                            @click="startEditShopping(item)"
+                                            class="px-2 py-1 border-none bg-transparent text-[#2a9d8f] cursor-pointer text-sm hover:bg-[#f0f0f0] rounded transition-colors"
+                                            title="編輯"
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            @click="
+                                                confirmRemoveShopping(item.id)
+                                            "
+                                            class="px-2 py-1 border-none bg-transparent text-[#ef4444] cursor-pointer text-sm hover:bg-[#fee2e2] rounded transition-colors"
+                                            title="刪除"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                </template>
+                            </li>
+                        </ul>
+
+                        <p
+                            v-if="!overview.shopping.length"
+                            class="text-sm text-[#999]"
+                        >
+                            尚無購買項目
+                        </p>
+
+                        <div v-if="canEdit" class="flex gap-2 mt-3">
+                            <input
+                                v-model="newShopping"
+                                placeholder="新增購買項目"
+                                @keyup.enter="addShopping"
+                                class="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
+                            />
+                            <input
+                                v-model="newShoppingQuantity"
+                                placeholder="數量（選填）"
+                                @keyup.enter="addShopping"
+                                class="w-24 min-w-0 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
+                            />
+                            <button
+                                @click="addShopping"
+                                class="px-3 py-2 bg-[#2a9d8f] text-white border-none rounded-lg cursor-pointer text-sm whitespace-nowrap"
+                            >
+                                新增
+                            </button>
+                        </div>
+                    </section>
+                    <!-- 提醒事項 -->
                     <section
                         class="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
                     >
@@ -201,17 +402,56 @@
                             <li
                                 v-for="item in overview.reminders"
                                 :key="item.id"
-                                class="flex items-start gap-2 py-1 text-sm text-[#555]"
+                                class="flex items-center gap-2 py-2 text-sm border-b border-gray-100 last:border-b-0"
                             >
-                                <span>•</span>
-                                <span class="flex-1">{{ item.text }}</span>
-                                <button
-                                    v-if="canEdit"
-                                    @click="removeReminder(item.id)"
-                                    class="border-none bg-transparent text-[#ccc] cursor-pointer"
+                                <template
+                                    v-if="
+                                        reminderEditingId === item.id && canEdit
+                                    "
                                 >
-                                    ×
-                                </button>
+                                    <!-- 編輯模式 -->
+                                    <span class="text-[#2a9d8f]">•</span>
+                                    <input
+                                        v-model="reminderEditForm.text"
+                                        placeholder="提醒事項"
+                                        class="flex-1 min-w-0 px-3 py-1.5 border border-[#2a9d8f] rounded-lg box-border text-sm"
+                                    />
+                                    <button
+                                        @click="saveEditReminder"
+                                        class="shrink-0 px-2.5 py-1.5 border-none bg-[#2a9d8f] text-white rounded-lg cursor-pointer text-sm font-bold"
+                                    >
+                                        ✓
+                                    </button>
+                                    <button
+                                        @click="cancelEditReminder"
+                                        class="shrink-0 px-2.5 py-1.5 border-none bg-gray-200 text-[#666] rounded-lg cursor-pointer text-sm"
+                                    >
+                                        ✕
+                                    </button>
+                                </template>
+                                <template v-else>
+                                    <!-- 檢視模式 -->
+                                    <span class="text-[#2a9d8f]">•</span>
+                                    <span class="flex-1 text-[#555]">{{
+                                        item.text
+                                    }}</span>
+                                    <div v-if="canEdit" class="flex gap-1">
+                                        <button
+                                            @click="startEditReminder(item)"
+                                            class="px-2 py-1 border-none bg-transparent text-[#2a9d8f] cursor-pointer text-sm hover:bg-[#f0f0f0] rounded transition-colors"
+                                            title="編輯"
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            @click="removeReminder(item.id)"
+                                            class="px-2 py-1 border-none bg-transparent text-[#ef4444] cursor-pointer text-sm hover:bg-[#fee2e2] rounded transition-colors"
+                                            title="刪除"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                </template>
                             </li>
                         </ul>
                         <p
@@ -225,7 +465,7 @@
                                 v-model="newReminder"
                                 placeholder="新增提醒，例如：集合時間 7:30"
                                 @keyup.enter="addReminder"
-                                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
+                                class="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
                             />
                             <button
                                 @click="addReminder"
@@ -403,7 +643,7 @@
                                 </div>
                                 <div
                                     v-if="canEdit && editingId !== place.id"
-                                    class="flex items-center gap-1"
+                                    class="flex items-center gap-4 justify-center"
                                 >
                                     <button
                                         @click="startEdit(place)"
@@ -493,7 +733,7 @@
                             type="email"
                             placeholder="輸入對方註冊時的 Email"
                             @keyup.enter="addParticipant"
-                            class="flex-1 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
+                            class="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg box-border text-sm"
                         />
                         <button
                             @click="addParticipant"
@@ -548,11 +788,25 @@ const passwordError = ref("");
 const activeDay = ref(0); // 0 代表總覽頁
 const newPlace = ref({ name: "", address: "", description: "", link: "" });
 
-const overview = ref({ packing: [], reminders: [] });
+const overview = ref({ packing: [], reminders: [], shopping: [] });
 const members = ref([]);
 const newPacking = ref("");
 const newReminder = ref("");
+const newShopping = ref("");
+const newShoppingQuantity = ref("");
 const draggingId = ref(null);
+
+// 購買清單編輯
+const shoppingEditingId = ref(null);
+const shoppingEditForm = ref({ text: "", quantity: "" });
+
+// 必帶物品編輯
+const packingEditingId = ref(null);
+const packingEditForm = ref({ text: "" });
+
+// 提醒事項編輯
+const reminderEditingId = ref(null);
+const reminderEditForm = ref({ text: "" });
 
 // 是否可以編輯景點：管理員或被指定為該行程參與者
 const { session, profile, isAdmin, init } = useAuth();
@@ -624,9 +878,108 @@ const fetchTripPlaces = async () => {
     }
 };
 
+const showConfirm = ref(false);
+const confirmConfig = ref({
+    title: "",
+    message: "",
+    onConfirm: null,
+});
+
+const confirmDelete = (title, message, onConfirm) => {
+    confirmConfig.value = { title, message, onConfirm };
+    showConfirm.value = true;
+};
+
+const startEditShopping = (item) => {
+    shoppingEditingId.value = item.id;
+    shoppingEditForm.value = {
+        text: item.text || "",
+        quantity: item.quantity || "",
+    };
+};
+
+const saveEditShopping = () => {
+    if (!shoppingEditForm.value.text.trim()) return;
+    updateOverview({
+        ...overview.value,
+        shopping: overview.value.shopping.map((item) =>
+            item.id === shoppingEditingId.value
+                ? {
+                      ...item,
+                      text: shoppingEditForm.value.text.trim(),
+                      quantity: shoppingEditForm.value.quantity.trim(),
+                  }
+                : item,
+        ),
+    });
+    shoppingEditingId.value = null;
+};
+
+const cancelEditShopping = () => {
+    shoppingEditingId.value = null;
+};
+
+// 必帶物品編輯函數
+const startEditPacking = (item) => {
+    packingEditingId.value = item.id;
+    packingEditForm.value = {
+        text: item.text || "",
+    };
+};
+
+const saveEditPacking = () => {
+    if (!packingEditForm.value.text.trim()) return;
+    updateOverview({
+        ...overview.value,
+        packing: overview.value.packing.map((item) =>
+            item.id === packingEditingId.value
+                ? {
+                      ...item,
+                      text: packingEditForm.value.text.trim(),
+                  }
+                : item,
+        ),
+    });
+    packingEditingId.value = null;
+};
+
+const cancelEditPacking = () => {
+    packingEditingId.value = null;
+};
+
+// 提醒事項編輯函數
+const startEditReminder = (item) => {
+    reminderEditingId.value = item.id;
+    reminderEditForm.value = {
+        text: item.text || "",
+    };
+};
+
+const saveEditReminder = () => {
+    if (!reminderEditForm.value.text.trim()) return;
+    updateOverview({
+        ...overview.value,
+        reminders: overview.value.reminders.map((item) =>
+            item.id === reminderEditingId.value
+                ? {
+                      ...item,
+                      text: reminderEditForm.value.text.trim(),
+                  }
+                : item,
+        ),
+    });
+    reminderEditingId.value = null;
+};
+
+const cancelEditReminder = () => {
+    reminderEditingId.value = null;
+};
+
+// 將原始概覽資料標準化為物件，包含必帶物品、提醒事項、購物清單
 const normalizeOverview = (raw) => ({
     packing: raw?.packing || [],
     reminders: raw?.reminders || [],
+    shopping: raw?.shopping || [],
 });
 
 // 參與成員暱稱（透過 RPC，一般訪客也能看到但看不到 Email）
@@ -637,11 +990,13 @@ const fetchMembers = async () => {
     members.value = (data || []).map((row) => row.nickname);
 };
 
+// 更新行程概覽（必帶物品、提醒事項、購物清單）
 const updateOverview = async (next) => {
     overview.value = next;
     await supabase.from("trips").update({ overview: next }).eq("id", tripId);
 };
 
+// 新增必帶物品清單項目
 const addPacking = () => {
     const text = newPacking.value.trim();
     if (!text) return;
@@ -654,7 +1009,7 @@ const addPacking = () => {
     });
     newPacking.value = "";
 };
-
+// 切換必帶物品清單項目勾選狀態
 const togglePacking = (id) => {
     updateOverview({
         ...overview.value,
@@ -664,13 +1019,17 @@ const togglePacking = (id) => {
     });
 };
 
+// 移除必帶物品清單項目
 const removePacking = (id) => {
-    updateOverview({
-        ...overview.value,
-        packing: overview.value.packing.filter((i) => i.id !== id),
+    confirmDelete("確認刪除物品？", "此項目將被永久刪除", () => {
+        updateOverview({
+            ...overview.value,
+            packing: overview.value.packing.filter((i) => i.id !== id),
+        });
     });
 };
 
+// 新增提醒事項清單項目
 const addReminder = () => {
     const text = newReminder.value.trim();
     if (!text) return;
@@ -683,11 +1042,58 @@ const addReminder = () => {
     });
     newReminder.value = "";
 };
-
+// 移除提醒事項清單項目
 const removeReminder = (id) => {
+    confirmDelete("確認刪除提醒事項？", "此項目將被永久刪除", () => {
+        updateOverview({
+            ...overview.value,
+            reminders: overview.value.reminders.filter((i) => i.id !== id),
+        });
+    });
+};
+
+// 新增購物清單項目
+const addShopping = () => {
+    const text = newShopping.value.trim();
+    if (!text) return;
+
     updateOverview({
         ...overview.value,
-        reminders: overview.value.reminders.filter((i) => i.id !== id),
+        shopping: [
+            ...overview.value.shopping,
+            {
+                id: crypto.randomUUID(),
+                text,
+                quantity: newShoppingQuantity.value.trim(),
+                checked: false,
+            },
+        ],
+    });
+
+    newShopping.value = "";
+    newShoppingQuantity.value = "";
+};
+// 切換購物清單項目勾選狀態
+const toggleShopping = (id) => {
+    updateOverview({
+        ...overview.value,
+        shopping: overview.value.shopping.map((item) =>
+            item.id === id ? { ...item, checked: !item.checked } : item,
+        ),
+    });
+};
+// 移除購物清單項目
+const removeShopping = (id) => {
+    confirmRemoveShopping(id);
+};
+
+// 確認刪除購買項目
+const confirmRemoveShopping = (id) => {
+    confirmDelete("確認刪除購買項目？", "此項目將被永久刪除", () => {
+        updateOverview({
+            ...overview.value,
+            shopping: overview.value.shopping.filter((item) => item.id !== id),
+        });
     });
 };
 
@@ -787,7 +1193,9 @@ const addPlace = () => {
 };
 
 const removePlace = (id) => {
-    updatePlaces(places.value.filter((p) => p.id !== id));
+    confirmDelete("確認刪除景點？", "刪除後將無法恢復，請確認是否繼續", () => {
+        updatePlaces(places.value.filter((p) => p.id !== id));
+    });
 };
 
 // transport 欄位表示「從上一個景點過來」的交通方式
@@ -896,13 +1304,15 @@ const addParticipant = async () => {
     await fetchParticipants();
 };
 
-const removeParticipant = async (userId) => {
-    await supabase
-        .from("trip_participants")
-        .delete()
-        .eq("trip_id", tripId)
-        .eq("user_id", userId);
-    await fetchParticipants();
+const removeParticipant = (userId) => {
+    confirmDelete("確認移除參與者？", "此用戶將無法再編輯此行程", async () => {
+        await supabase
+            .from("trip_participants")
+            .delete()
+            .eq("trip_id", tripId)
+            .eq("user_id", userId);
+        await fetchParticipants();
+    });
 };
 
 onMounted(async () => {

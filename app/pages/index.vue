@@ -1,42 +1,94 @@
 <template>
+    <!-- 認證模態框 -->
     <div
         v-if="showAuthModal"
         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
     >
         <div class="bg-white rounded-2xl p-6 w-80">
-            <h3 class="font-bold mb-3">
-                {{ authMode === "login" ? "登入" : "註冊" }}
-            </h3>
-            <input
-                v-if="authMode === 'register'"
-                v-model="authForm.nickname"
-                placeholder="你的暱稱"
-                class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
-            />
-            <input
-                v-model="authForm.email"
-                type="email"
-                placeholder="Email"
-                class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
-            />
-            <input
-                v-model="authForm.password"
-                type="password"
-                placeholder="密碼"
-                class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
-                @keyup.enter="submitAuth"
-            />
-            <p v-if="authError" class="text-[#ef4444] text-sm mb-3">
-                {{ authError }}
-            </p>
+            <!-- 登入/註冊模式 -->
+            <template v-if="authMode === 'login' || authMode === 'register'">
+                <h3 class="font-bold mb-3">
+                    {{ authMode === "login" ? "登入" : "註冊" }}
+                </h3>
+                <form @submit.prevent="submitAuth">
+                    <input
+                        v-if="authMode === 'register'"
+                        v-model="authForm.nickname"
+                        placeholder="你的暱稱"
+                        class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
+                    />
+                    <input
+                        v-model="authForm.email"
+                        type="email"
+                        placeholder="Email"
+                        class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
+                    />
+                    <input
+                        v-model="authForm.password"
+                        type="password"
+                        placeholder="密碼"
+                        class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
+                    />
+                    <p v-if="authError" class="text-[#ef4444] text-sm mb-3">
+                        {{ authError }}
+                    </p>
+                    <button
+                        type="submit"
+                        class="w-full py-2 bg-[#2a9d8f] text-white rounded-lg mb-2 border-none cursor-pointer"
+                    >
+                        {{ authMode === "login" ? "登入" : "註冊" }}
+                    </button>
+                </form>
+            </template>
+
+            <!-- 忘記密碼模式 -->
+            <template v-else-if="authMode === 'forgot'">
+                <h3 class="font-bold mb-3">重設密碼</h3>
+                <form @submit.prevent="submitForgot">
+                    <p class="text-sm text-[#666] mb-3">
+                        輸入您的 Email，我們會發送密碼重置連結給您
+                    </p>
+                    <input
+                        v-model="forgotEmail"
+                        type="email"
+                        placeholder="輸入您的 Email"
+                        class="w-full px-3 py-2 border border-gray-200 rounded-lg mb-3"
+                    />
+                    <p v-if="forgotError" class="text-[#ef4444] text-sm mb-3">
+                        {{ forgotError }}
+                    </p>
+                    <p v-if="forgotSuccess" class="text-[#10b981] text-sm mb-3">
+                        {{ forgotSuccess }}
+                    </p>
+                    <button
+                        type="submit"
+                        class="w-full py-2 bg-[#2a9d8f] text-white rounded-lg mb-2 border-none cursor-pointer"
+                    >
+                        寄送重置連結
+                    </button>
+                </form>
+            </template>
+
+            <!-- 按鈕組 -->
             <button
-                class="w-full py-2 bg-[#2a9d8f] text-white rounded-lg mb-2"
-                @click="submitAuth"
+                class="w-full py-2 text-[#999] text-sm border-none bg-transparent cursor-pointer"
+                @click="
+                    authMode === 'forgot'
+                        ? (authMode = 'login')
+                        : (authMode = 'forgot')
+                "
             >
-                {{ authMode === "login" ? "登入" : "註冊" }}
+                {{
+                    authMode === "forgot"
+                        ? "返回登入"
+                        : authMode === "login"
+                          ? "忘記密碼？"
+                          : ""
+                }}
             </button>
             <button
-                class="w-full py-2 text-[#2a9d8f] text-sm"
+                v-if="authMode !== 'forgot'"
+                class="w-full py-2 text-[#2a9d8f] text-sm border-none bg-transparent cursor-pointer"
                 @click="authMode = authMode === 'login' ? 'register' : 'login'"
             >
                 {{
@@ -46,13 +98,44 @@
                 }}
             </button>
             <button
-                class="w-full py-2 text-[#999] text-sm"
+                class="w-full py-2 text-[#999] text-sm border-none bg-transparent cursor-pointer"
                 @click="showAuthModal = false"
             >
                 先以訪客身份瀏覽
             </button>
         </div>
     </div>
+
+    <!-- 刪除確認對話框 -->
+    <div
+        v-if="showConfirm"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    >
+        <div class="bg-white rounded-2xl p-6 w-80">
+            <h3 class="font-bold mb-2">{{ confirmConfig.title }}</h3>
+            <p class="text-sm text-[#666] mb-5">
+                {{ confirmConfig.message }}
+            </p>
+            <div class="flex gap-3">
+                <button
+                    class="flex-1 py-2 bg-[#ef4444] text-white rounded-lg border-none cursor-pointer"
+                    @click="
+                        confirmConfig.onConfirm?.();
+                        showConfirm = false;
+                    "
+                >
+                    確認刪除
+                </button>
+                <button
+                    class="flex-1 py-2 bg-gray-200 text-[#555] rounded-lg border-none cursor-pointer"
+                    @click="showConfirm = false"
+                >
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div
         class="px-6 py-10 font-sans bg-linear-to-br from-[#fdf6ec] to-[#f3f7f2] min-h-screen"
     >
@@ -262,7 +345,7 @@
                         <button
                             v-if="isAdmin"
                             class="border-none bg-transparent text-[#ccc] text-lg cursor-pointer"
-                            @click.stop="removeTrip(trip.id)"
+                            @click.stop="confirmRemoveTrip(trip.id)"
                         >
                             ×
                         </button>
@@ -278,13 +361,25 @@ const { $supabase: supabase } = useNuxtApp();
 
 const trips = ref([]);
 
-// 登入狀態與管理員判斷（來自 profiles.is_admin，並配合 RLS 在資料庫層級實際擋權）
-const { session, profile, isAdmin, init, login, register, logout } = useAuth();
+const {
+    session,
+    profile,
+    isAdmin,
+    init,
+    login,
+    register,
+    logout,
+    resetPassword,
+} = useAuth();
 
 const showAuthModal = ref(false);
 const authMode = ref("login");
 const authForm = ref({ email: "", password: "", nickname: "" });
 const authError = ref("");
+
+const forgotEmail = ref("");
+const forgotError = ref("");
+const forgotSuccess = ref("");
 
 const submitAuth = async () => {
     authError.value = "";
@@ -314,7 +409,40 @@ const submitAuth = async () => {
     authForm.value = { email: "", password: "", nickname: "" };
 };
 
-// 年份分組
+const submitForgot = async () => {
+    forgotError.value = "";
+    forgotSuccess.value = "";
+    if (!forgotEmail.value.trim()) {
+        forgotError.value = "請輸入 Email";
+        return;
+    }
+
+    const { error } = await resetPassword(forgotEmail.value);
+    if (error) {
+        forgotError.value = error.message || "發送失敗，請稍後再試";
+        return;
+    }
+
+    forgotSuccess.value = "重置連結已發送至您的信箱，請檢查郵件";
+    forgotEmail.value = "";
+    setTimeout(() => {
+        authMode.value = "login";
+        forgotSuccess.value = "";
+    }, 3000);
+};
+
+const showConfirm = ref(false);
+const confirmConfig = ref({
+    title: "",
+    message: "",
+    onConfirm: null,
+});
+
+const confirmDelete = (title, message, onConfirm) => {
+    confirmConfig.value = { title, message, onConfirm };
+    showConfirm.value = true;
+};
+
 const groupedByYear = computed(() => {
     const groups = {};
     for (const trip of trips.value) {
@@ -327,27 +455,23 @@ const groupedByYear = computed(() => {
     return groups;
 });
 
-// 排序年份
 const sortedYears = computed(() =>
     Object.keys(groupedByYear.value).sort((a, b) => b - a),
 );
-// 年份數量
 const yearCount = computed(() => sortedYears.value.length);
 
-// 格式化月份
 const formatMonth = (date) => {
     if (!date) return "---";
     return new Date(date)
         .toLocaleString("en-US", { month: "short" })
         .toUpperCase();
 };
-// 格式化日期
+
 const formatDay = (date) => {
     if (!date) return "--";
     return new Date(date).getDate();
 };
 
-// 新增行程表單數據
 const newTrip = ref({
     title: "",
     location: "",
@@ -385,17 +509,21 @@ const addTrip = async () => {
     if (error) console.error(error);
 };
 
-const removeTrip = async (id) => {
-    await supabase.from("trips").delete().eq("id", id);
-    trips.value = trips.value.filter((t) => t.id !== id);
+const confirmRemoveTrip = (id) => {
+    confirmDelete(
+        "確認刪除行程？",
+        "刪除後將無法恢復此行程及其所有內容",
+        async () => {
+            await supabase.from("trips").delete().eq("id", id);
+            trips.value = trips.value.filter((t) => t.id !== id);
+        },
+    );
 };
 
-// 初始化登入狀態
 onMounted(() => {
     init();
 });
 
-// 初始化行程列表
 onMounted(async () => {
     const { data } = await supabase
         .from("trips")
