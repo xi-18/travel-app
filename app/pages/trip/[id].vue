@@ -538,19 +538,41 @@
                                 </span>
                             </div>
                             <div
-                                :draggable="canEdit && editingId !== place.id"
+                                :data-place-id="place.id"
+                                :draggable="
+                                    canEdit && editingId !== place.id && !isCoarse
+                                "
                                 @dragstart="draggingId = place.id"
                                 @dragover.prevent
                                 @drop.prevent="dropOn(place.id)"
                                 @dragend="draggingId = null"
                                 :class="[
                                     'bg-white rounded-xl p-4 shadow-[0_4px_16px_rgba(0,0,0,0.05)] border-l-4 border-[#2a9d8f] flex items-start gap-3',
-                                    canEdit && editingId !== place.id
+                                    canEdit && editingId !== place.id && !isCoarse
                                         ? 'cursor-grab'
                                         : '',
                                     draggingId === place.id ? 'opacity-40' : '',
+                                    dropTargetId === place.id &&
+                                    draggingId !== place.id
+                                        ? 'ring-2 ring-[#2a9d8f]'
+                                        : '',
                                 ]"
                             >
+                                <!-- 觸控裝置的拖曳把手 -->
+                                <span
+                                    v-if="
+                                        isCoarse &&
+                                        canEdit &&
+                                        editingId !== place.id
+                                    "
+                                    class="touch-none select-none shrink-0 self-stretch flex items-center -ml-1 px-1 text-[#bbb] text-xl leading-none"
+                                    title="按住拖曳排序"
+                                    @pointerdown="onHandleDown($event, place.id)"
+                                    @pointermove="onHandleMove"
+                                    @pointerup="onHandleUp"
+                                    @pointercancel="onHandleCancel"
+                                    >⋮⋮</span
+                                >
                                 <span
                                     class="w-7 h-7 shrink-0 rounded-full bg-[#2a9d8f] text-white text-sm font-bold flex items-center justify-center"
                                     >{{ index + 1 }}</span
@@ -795,6 +817,8 @@ const newReminder = ref("");
 const newShopping = ref("");
 const newShoppingQuantity = ref("");
 const draggingId = ref(null);
+const dropTargetId = ref(null);
+const isCoarse = ref(false);
 
 // 購買清單編輯
 const shoppingEditingId = ref(null);
@@ -1113,6 +1137,62 @@ const dropOn = (targetId) => {
     const others = places.value.filter((p) => (p.day || 1) !== activeDay.value);
     updatePlaces([...others, ...dayList]);
 };
+
+// 觸控拖曳：按住把手移動，放開時排到手指下方的景點位置
+let scrollFrame = null;
+let lastPointerY = 0;
+
+const stopAutoScroll = () => {
+    if (scrollFrame) cancelAnimationFrame(scrollFrame);
+    scrollFrame = null;
+};
+
+const autoScroll = () => {
+    const edge = 80;
+    if (lastPointerY < edge) window.scrollBy(0, -12);
+    else if (lastPointerY > window.innerHeight - edge) window.scrollBy(0, 12);
+    scrollFrame = requestAnimationFrame(autoScroll);
+};
+
+const updateDropTarget = (x, y) => {
+    const card = document.elementFromPoint(x, y)?.closest("[data-place-id]");
+    dropTargetId.value = card?.dataset.placeId || null;
+};
+
+const onHandleDown = (e, id) => {
+    if (e.pointerType === "mouse") return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    draggingId.value = id;
+    lastPointerY = e.clientY;
+    stopAutoScroll();
+    scrollFrame = requestAnimationFrame(autoScroll);
+};
+
+const onHandleMove = (e) => {
+    if (!draggingId.value) return;
+    lastPointerY = e.clientY;
+    updateDropTarget(e.clientX, e.clientY);
+};
+
+const onHandleUp = () => {
+    stopAutoScroll();
+    const target = dropTargetId.value;
+    dropTargetId.value = null;
+    if (target) dropOn(target);
+    else draggingId.value = null;
+};
+
+const onHandleCancel = () => {
+    stopAutoScroll();
+    dropTargetId.value = null;
+    draggingId.value = null;
+};
+
+onMounted(() => {
+    isCoarse.value = window.matchMedia("(pointer: coarse)").matches;
+});
+
+onBeforeUnmount(stopAutoScroll);
 
 // 訂閱 Supabase Realtime 即時推播頻道
 const subscribeRealtime = () => {

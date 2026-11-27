@@ -23,29 +23,36 @@ export default defineNuxtConfig({
             name: "Travel App",
             short_name: "Travel",
             description: "Travel planning app",
-            theme_color: "#ffffff",
-            background_color: "#ffffff",
+            lang: "zh-TW",
+            theme_color: "#2a9d8f",
+            background_color: "#fdf6ec",
             display: "standalone",
             start_url: "/",
             scope: "/",
             icons: [
                 {
-                    src: "/appicon.png",
+                    src: "/pwa-192.png",
                     sizes: "192x192",
                     type: "image/png",
                     purpose: "any",
                 },
                 {
-                    src: "/splashicon.png",
+                    src: "/pwa-512.png",
                     sizes: "512x512",
                     type: "image/png",
                     purpose: "any",
+                },
+                {
+                    src: "/pwa-maskable-512.png",
+                    sizes: "512x512",
+                    type: "image/png",
+                    purpose: "maskable",
                 },
             ],
         },
         workbox: {
             globPatterns: ["**/*.{js,css,html,png,svg,ico,gif}"],
-            navigateFallback: "/",
+            navigateFallback: null,
             cleanupOutdatedCaches: true,
             runtimeCaching: [
                 {
